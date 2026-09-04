@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Vardanloan - Payment</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:#f3f6fb;
+  font-family:Arial,Helvetica,sans-serif;
+  color:#111827;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:25px 15px;
+}
+
+.card{
+  width:100%;
+  max-width:640px;
+  background:#fff;
+  border-radius:22px;
+  padding:38px 40px;
+  box-shadow:0 10px 35px rgba(0,0,0,.10);
+}
+
+.logo{
+  text-align:center;
+  font-size:40px;
+  font-weight:800;
+  color:#1769e0;
+  margin-bottom:8px;
+}
+
+.subtitle{
+  text-align:center;
+  color:#666;
+  font-size:20px;
+  margin-bottom:28px;
+}
+
+.info{
+  background:#f8fafc;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:22px;
+  margin-bottom:24px;
+}
+
+.row{
+  font-size:20px;
+  font-weight:700;
+  margin:12px 0;
+}
+
+.amount{
+  color:#20a548;
+  font-size:31px;
+}
+
+.expiry{
+  text-align:center;
+  color:#d33f4b;
+  font-size:21px;
+  font-weight:700;
+  margin:20px 0;
+}
+
+#qrcode{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin:18px auto 25px;
+}
+
+#qrcode img{
+  width:290px;
+  height:290px;
+  padding:8px;
+  background:white;
+  border:1px solid #ddd;
+  border-radius:14px;
+}
+
+.upibox{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:#e9edf2;
+  border-radius:12px;
+  overflow:hidden;
+  margin-bottom:18px;
+}
+
+.upiid{
+  padding:15px 18px;
+  font-size:17px;
+  word-break:break-all;
+}
+
+.copy{
+  border:0;
+  background:#1769e0;
+  color:white;
+  padding:14px 20px;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.pay{
+  display:block;
+  width:100%;
+  text-align:center;
+  text-decoration:none;
+  background:#20a548;
+  color:white;
+  border-radius:12px;
+  padding:17px;
+  font-size:21px;
+  font-weight:700;
+  border:0;
+  cursor:pointer;
+}
+
+.pay:hover{
+  opacity:.92;
+}
+
+.note{
+  text-align:center;
+  color:#777;
+  font-size:13px;
+  margin-top:18px;
+  line-height:1.5;
+}
+
+.expired{
+  display:none;
+  text-align:center;
+  color:#d33f4b;
+  font-size:21px;
+  font-weight:700;
+  margin:20px 0;
+}
+
+@media(max-width:500px){
+  .card{
+    padding:25px 18px;
+    border-radius:18px;
+  }
+
+  .logo{
+    font-size:32px;
+  }
+
+  .subtitle{
+    font-size:17px;
+  }
+
+  .row{
+    font-size:17px;
+  }
+
+  .amount{
+    font-size:27px;
+  }
+
+  #qrcode img{
+    width:250px;
+    height:250px;
+  }
+
+  .upibox{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .copy{
+    width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+  <div class="logo" id="appName">Vardanloan</div>
+
+  <div class="subtitle">
+    UPI Payment Request
+  </div>
+
+  <div class="info">
+
+    <div class="row">
+      Customer Name:
+      <span id="customerName"></span>
+    </div>
+
+    <div class="row">
+      Amount:
+      <span class="amount">₹<span id="amount"></span></span>
+    </div>
+
+  </div>
+
+  <div class="expiry" id="expiryText">
+    Link expires in: <span id="timer">10:00</span>
+  </div>
+
+  <div class="expired" id="expiredText">
+    This payment link has expired.
+  </div>
+
+  <div id="qrcode"></div>
+
+  <div class="upibox">
+
+    <div class="upiid" id="upiText">
+      7004738614@mbk
+    </div>
+
+    <button class="copy" onclick="copyUPI()">
+      Copy UPI
+    </button>
+
+  </div>
+
+  <a id="payButton" class="pay">
+    Pay Now via UPI
+  </a>
+
+  <div class="note">
+    Please verify the recipient details before making payment.
+  </div>
+
+</div>
+
+
+<!-- QR CODE LIBRARY -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+
+/* =====================================================
+   DEFAULT SETTINGS
+   ===================================================== */
+
+const DEFAULTS = {
+
+  // App / Company name
+  appName: "Vardanloan",
+
+  // Your UPI ID
+  upi: "7004738614@mbk",
+
+  // Default customer
+  customerName: "Customer",
+
+  // Default amount
+  amount: "5500",
+
+  // Link expiry in minutes
+  expiryMinutes: 10
+
+};
+
+
+/* =====================================================
+   GET DATA FROM URL
+   =====================================================
+
+   Example:
+
+   ?name=Ali&amount=5500
+
+   or:
+
+   ?name=Ali&amount=5500&minutes=15
+
+   ===================================================== */
+
+const params = new URLSearchParams(window.location.search);
+
+const appName =
+  params.get("app") || DEFAULTS.appName;
+
+const upi =
+  params.get("upi") || DEFAULTS.upi;
+
+const customerName =
+  params.get("name") || DEFAULTS.customerName;
+
+const amount =
+  params.get("amount") || DEFAULTS.amount;
+
+const expiryMinutes =
+  parseInt(params.get("minutes")) || DEFAULTS.expiryMinutes;
+
+
+/* =====================================================
+   SHOW INFORMATION
+   ===================================================== */
+
+document.getElementById("appName").textContent = appName;
+
+document.getElementById("customerName").textContent =
+  customerName;
+
+document.getElementById("amount").textContent =
+  Number(amount).toLocaleString("en-IN");
+
+document.getElementById("upiText").textContent =
+  upi;
+
+
+/* =====================================================
+   CREATE UPI PAYMENT LINK
+   ===================================================== */
+
+const upiURL =
+  "upi://pay" +
+  "?pa=" + encodeURIComponent(upi) +
+  "&pn=" + encodeURIComponent(appName) +
+  "&am=" + encodeURIComponent(amount) +
+  "&cu=INR" +
+  "&tn=" + encodeURIComponent("Payment for " + customerName);
+
+
+/* =====================================================
+   CREATE QR CODE
+   ===================================================== */
+
+new QRCode(document.getElementById("qrcode"), {
+
+  text: upiURL,
+
+  width: 290,
+
+  height: 290,
+
+  correctLevel: QRCode.CorrectLevel.H
+
+});
+
+
+/* =====================================================
+   PAY BUTTON
+   ===================================================== */
+
+document.getElementById("payButton").href = upiURL;
+
+
+/* =====================================================
+   COPY UPI
+   ===================================================== */
+
+function copyUPI(){
+
+  navigator.clipboard.writeText(upi)
+    .then(function(){
+
+      const button =
+        document.querySelector(".copy");
+
+      button.textContent = "Copied!";
+
+      setTimeout(function(){
+
+        button.textContent = "Copy UPI";
+
+      }, 1500);
+
+    });
+
+}
+
+
+/* =====================================================
+   EXPIRY TIMER
+   ===================================================== */
+
+let seconds =
+  expiryMinutes * 60;
+
+const timer =
+  document.getElementById("timer");
+
+const expiryText =
+  document.getElementById("expiryText");
+
+const expiredText =
+  document.getElementById("expiredText");
+
+const payButton =
+  document.getElementById("payButton");
+
+const qrcode =
+  document.getElementById("qrcode");
+
+
+function updateTimer(){
+
+  let minutes =
+    Math.floor(seconds / 60);
+
+  let remainingSeconds =
+    seconds % 60;
+
+  timer.textContent =
+    String(minutes).padStart(2,"0") +
+    ":" +
+    String(remainingSeconds).padStart(2,"0");
+
+
+  if(seconds <= 0){
+
+    clearInterval(countdown);
+
+    expiryText.style.display = "none";
+
+    expiredText.style.display = "block";
+
+    payButton.style.pointerEvents = "none";
+
+    payButton.style.opacity = "0.5";
+
+    qrcode.style.opacity = "0.35";
+
+    return;
+  }
+
+  seconds--;
+
+}
+
+updateTimer();
+
+const countdown =
+  setInterval(updateTimer,1000);
+
+</script>
+
+</body>
+</html>
